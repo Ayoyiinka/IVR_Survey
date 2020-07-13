@@ -18,7 +18,6 @@ feedback = []
 @app.route('/survey')
 def index():
     return "Hello, World!"
-    # return """<img src="./download.png" alt="Image" class="img-fluid">"""
 
 @app.route('/survey/description', methods=['POST'])
 def description():
@@ -71,10 +70,3 @@ def end_survey():
     response = VoiceResponse()
     response.say('Thank you for your time, please press the # key to end the call', loop=1, voice="alice")
     return twiml(response)
-
-
-# get the call sid that i am using to call
-# convert feedback to a dictonary
-# while phone sid is used as the key, the input values from the caller will be the value for the phone sid
-# finally, compare phone sid with what is in the sheet now, if its not there 
-# then append to the sheet
