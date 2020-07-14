@@ -1,24 +1,23 @@
-from flask import Flask, flash, render_template, redirect, request, session, url_for, Response  
+from flask import Flask, flash, render_template, redirect, request, session, url_for, Response, session
 from twilio.twiml.voice_response import VoiceResponse
 from ivr_survey import app
 from oauth2client.service_account import ServiceAccountCredentials
 from ivr_survey.sheets import sheet
 
 import gspread
-
+import os
 
 def twiml(resp):
     resp = Response(str(resp))
     resp.headers['Content-Type'] = 'text/xml'
     return resp
 
-feedback = []
+app.secret_key = os.environ['SECRET_KEY']
 
 @app.route('/')
 @app.route('/survey')
 def index():
     return "Hello, World!"
-    # return """<img src="./download.png" alt="Image" class="img-fluid">"""
 
 @app.route('/survey/description', methods=['POST'])
 def description():
@@ -38,12 +37,18 @@ def question_one():
 
 @app.route('/survey/question_two', methods=['POST'])
 def question_two():
-    if request.form['Digits'] == '1':
-        feedback.append('Male')
-    elif request.form['Digits'] == '2': 
-        feedback.append('Female')
+    session_id = request.values['CallSid']
+    digit = request.form['Digits']
+
+    session[session_id] = []
+    
+    if digit == '1':
+        session[session_id].append('Male')
+    elif digit == '2': 
+        session[session_id].append('Female')
     else:
-        feedback.append('Invalid input')
+        session[session_id].append('Invalid input')
+
     response = VoiceResponse()
     with response.gather(num_digits=1, action=url_for('question_three'), method="POST") as g:
         g.say('Question two. What is your marital status? Please press 1 for married and 2 for single', loop=2, voice="alice")
@@ -52,12 +57,17 @@ def question_two():
 
 @app.route('/survey/question_three', methods=['POST'])
 def question_three():
-    if request.form['Digits'] == '1':
-        feedback.append('Married')
-    elif request.form['Digits'] == '2':
-        feedback.append('Single')
+    session_id = request.values['CallSid']
+    digit = request.form['Digits']
+
+    if digit == '1':
+        session.get(session_id).append('Married')
+    elif digit == '2': 
+        session.get(session_id).append('Single')
     else:
-        feedback.append('Invalid input')
+        session.get(session_id).append('Invalid input')
+    session.modified = True
+
     response = VoiceResponse()
     with response.gather(num_digits=2, action=url_for('end_survey'), method="POST") as g:
         g.say('Final Question. How old are you?', loop=2, voice="alice")
@@ -66,15 +76,14 @@ def question_three():
 
 @app.route('/survey/end_survey', methods=['POST'])
 def end_survey():
-    feedback.append(request.form['Digits'])
-    sheet.insert_row(feedback[-3:], 2)
+    session_id = request.values['CallSid']
+    digit = request.form['Digits']
+
+    session.get(session_id).append(digit)
+    session.modified = True
+
+    sheet.insert_row(session[session_id], 2)
+
     response = VoiceResponse()
     response.say('Thank you for your time, please press the # key to end the call', loop=1, voice="alice")
     return twiml(response)
-
-
-# get the call sid that i am using to call
-# convert feedback to a dictonary
-# while phone sid is used as the key, the input values from the caller will be the value for the phone sid
-# finally, compare phone sid with what is in the sheet now, if its not there 
-# then append to the sheet
