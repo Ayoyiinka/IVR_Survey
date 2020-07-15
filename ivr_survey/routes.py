@@ -31,23 +31,23 @@ def description():
 def question_one():
     response = VoiceResponse()
     with response.gather(num_digits=1, action=url_for('question_two'), method="POST") as g:
-        g.say('Question one. How would you describe your gender? Please press 1 for male and 2 for female', loop=2, voice="alice")
+        g.say('Question one. Do you own or rent a house? Please press 1 if you own a house and 2 if you rent a house', loop=2, voice="alice")
         return twiml(response)
     return twiml(response)
 
 @app.route('/survey/question_two', methods=['POST'])
 def question_two():
-    session_id = request.values['CallSid']
+
     digit = request.form['Digits']
 
-    session[session_id] = []
+    session['answers'] = []
     
     if digit == '1':
-        session[session_id].append('Male')
+        session['answers'].append('House Owner')
     elif digit == '2': 
-        session[session_id].append('Female')
+        session['answers'].append('Tenant')
     else:
-        session[session_id].append('Invalid input')
+        session['answers'].append('None of the two options')
 
     response = VoiceResponse()
     with response.gather(num_digits=1, action=url_for('question_three'), method="POST") as g:
@@ -61,11 +61,11 @@ def question_three():
     digit = request.form['Digits']
 
     if digit == '1':
-        session.get(session_id).append('Married')
+        session['answers'].append('Married')
     elif digit == '2': 
-        session.get(session_id).append('Single')
+        session['answers'].append('Single')
     else:
-        session.get(session_id).append('Invalid input')
+        session['answers'].append('None of the two options')
     session.modified = True
 
     response = VoiceResponse()
@@ -79,10 +79,10 @@ def end_survey():
     session_id = request.values['CallSid']
     digit = request.form['Digits']
 
-    session.get(session_id).append(digit)
+    session['answers'].append(digit)
     session.modified = True
 
-    sheet.insert_row(session[session_id], 2)
+    sheet.insert_row(session['answers'], 2)
 
     response = VoiceResponse()
     response.say('Thank you for your time, please press the # key to end the call', loop=1, voice="alice")
